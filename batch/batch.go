@@ -729,6 +729,15 @@ func (w *WorkflowMaker) uploadFilesTemplate(opts *BatchSubmissionOpts) *v1alpha1
 	}
 }
 
+// workdirCapacity returns the size of the workdir PVC shared by every stage of
+// the workflow: the largest MinDiskSpace across the analysis's steps, but never
+// less than defaultStorageCapacity. Mirrors the VICE sizing in
+// incluster.getPersistentVolumeCapacity.
+func (w *WorkflowMaker) workdirCapacity() resourcev1.Quantity {
+	capacity := max(defaultStorageCapacity.Value(), w.analysis.DiskRequest())
+	return *resourcev1.NewQuantity(capacity, resourcev1.BinarySI)
+}
+
 // NewWorkflow returns a defintion of a workflow that executes a DE batch
 // analyis. It does not submit the workflow to the cluster.
 func (w *WorkflowMaker) NewWorkflow(ctx context.Context, opts *BatchSubmissionOpts) (*v1alpha1.Workflow, error) {
@@ -831,7 +840,7 @@ func (w *WorkflowMaker) NewWorkflow(ctx context.Context, opts *BatchSubmissionOp
 						},
 						Resources: apiv1.VolumeResourceRequirements{
 							Requests: apiv1.ResourceList{
-								apiv1.ResourceStorage: defaultStorageCapacity,
+								apiv1.ResourceStorage: w.workdirCapacity(),
 							},
 						},
 					},
